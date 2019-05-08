@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(pwr)
 library(fitdistrplus)
+library(knitr)
 ```
 
 ## Statistics and the Law
@@ -156,7 +157,13 @@ ill62 <-as.numeric(as.array(ill62 [,1]))
 ill63 <-as.numeric(as.array(ill63 [,1]))
 ill64 <-as.numeric(as.array(ill64 [,1]))
 
-# the distribution of the rainfall data.
+nill60 <- length(ill60)
+nill61 <- length(ill61)
+nill62 <- length(ill62)
+nill63 <- length(ill63)
+nill64 <- length(ill64)
+
+# the distribution of the rainfall data:Are the four years similar?
 
 ## density plot 
 par(mfrow=c(2,3))
@@ -165,4 +172,57 @@ plot(density(ill61))
 plot(density(ill62))
 plot(density(ill63))
 plot(density(ill64))
+
+## ks.test
+ks.test(ill60,ill61)
+ks.test(ill61,ill62)
+ks.test(ill63,ill64)
+
+```
+
+From the density plot, we can see that there is a similar pattern in each season.
+The ks.test also shows that the distributions of the storm data in four seasons are similar.
+
+```{r}
+#  Where some years wetter? If some years were wetter, was it because there were more storms? Or, was it because storms produced more rain?
+year <- c(1960,1961,1962,1963,1964)
+total_rain <- c(sum(ill60),sum(ill61),sum(ill62),sum(ill63),sum(ill64))
+num_storm <- c(nill60,nill61,nill62,nill63,nill64)
+rain <- as.data.frame(cbind(year,total_rain,num_storm))
+kable(rain)
+```
+
+From the table, we can see that year 1961 seems to be wetter than other years overall, and the number of storm did't change much. This may be a evidence that the storms had produced more rain. 
+
+
+```{r}
+# What other distributions might they have considered? Do you agree with Changnon and Huff? Why? Why not?
+
+rain_all <- c(ill60,ill61,ill62,ill63,ill64)
+fitgamma <- fitdist(rain_all,"gamma")
+plot(fitgamma)
+summary(fitgamma)
+
+```
+
+From the summary and the Q-Q plot and empirical distribution, we can see that the gamma distribution is a good fit for their data.
+
+```{r}
+# Using the gamma distribution as your model, produce estimates of the parameters using both the method of moments and maximum likelihood. Use the bootstrap to estimate the variance of the estimates. Compare the estimates which estimates would you present? Why?
+
+
+# calculate MOM 
+mom <- fitdist(rain_all,"gamma",method = "mme")
+boot_mom <- bootdist(mom)
+summary(boot_mom)
+
+
+# calculate mle 
+mle <- fitdist(alldata, "gamma",method = "mle")
+boot_mle <- bootdist(mle)
+summary(boot_mle)
+
+
+# Compare the estimates
+gofstat(list(mom,mle))
 ```
