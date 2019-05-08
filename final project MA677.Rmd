@@ -1,0 +1,168 @@
+---
+title: "Final Project for MA 677"
+author: "Wenjia Xie"
+date: "May 6, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(pwr)
+library(fitdistrplus)
+```
+
+## Statistics and the Law
+
+```{r}
+# load the data and reconstruct the data structure for analysis 
+acorn <- read.csv("acorn.csv")
+
+Min <- acorn %>% 
+  dplyr::select(MIN) %>% 
+  mutate(type="Min")
+
+White <- acorn %>% 
+  dplyr::select(WHITE) %>%
+  mutate(type="white")
+
+colnames(Min)[1] <-"Rate" 
+colnames(White)[1] <- "Rate"
+data1 <- rbind(Min,White)
+
+# use two sample t-test to test the ratio difference
+test1 <- t.test(Rate ~ type, data = data1,
+        var.equal = TRUE, alternative = "greater")
+test1
+
+# power analysis 
+common_variance <- sd(data1$Rate)
+effect_size <- abs(mean(Min$Rate)-mean(White$Rate))/common_variance # calculate effect size
+
+ptab1 <- cbind()
+n <- seq(2, 30, by = 1)  # define sample size
+for (i in seq(2, 50, by = 1)) {
+  pwrt1 <- pwr.t.test(
+    n = i, 
+    sig.level = 0.05, 
+    power = NULL,
+    d = effect_size,
+    type = "two.sample"
+  )
+  ptab1 <- rbind(ptab1, pwrt1$power)
+}
+
+ptab1[9]
+
+```
+
+
+From the two sample t test, we can see that the the mean refusal rate for minority applicants is 36.88 and mean refusal rate for white applicants is 15.62%. The p-valus is so small that we can reject the null hypothesis and there is difference for these two groups.
+
+To get an power greater than 0.8, we need at least 9 samples. The sample given by the example is sufficient evidence of discrimination to warrant corrective action.
+
+
+
+## Comparing Suppliers
+
+Revenue aside, which of the three schools produces the higher quality ornithopters, or are do they all produce about the same quality?
+
+```{r}
+fly<- as.table(rbind(c(12,23,89),c(8,12,62),c(21,30,119)))
+dimnames(fly) <- list( School = c("Area51","BDV","Giffen"),
+                                  Rating = c("dead","display","fly"))
+chisq.test(fly,correct = F)
+```
+
+From the test, we can see that the p-value is much greater than 0.05 thus we can not reject the null hypothesis that there is no difference among three schools. The three school all produce about the same quality.
+
+
+## How deadly are sharks?
+
+If you have spent any time in the ocean enjoying activities such as swimming, surfing, sailing, or fishing, you may have seen a shark or two. It might have made you nervous. Of course, a little knowledge is helpful.Hammerhead sharks, for example, rarely attack humans (but are killed in great numbers by ignorant people).
+
+In the past year, an interesting shark attack dataset has been available on Kaggle. The data clearly show that surfing is an ocean sport that accounts for a large percentage of shark attacks on humans. Personally, I have always believed that the sharks in Australia were, on average, a more vicious lot than the sharks in the United States. Now, that you have the data, please help me sort out how U.S. sharks compare with Australian sharks. Explain your analysis in terms that are simple but technically correct, make sure to include an analysis of statistical power.
+
+```{r}
+shark <- read.csv("sharkattack.csv")
+
+us <- shark %>% 
+  dplyr::select(Country.code,Type,Fatal) %>% 
+  filter(Country.code=='US') %>% 
+  group_by(Fatal) %>% 
+  summarise(Fatal_num = n())   # 1795 ; 20; 217
+
+
+aus <- shark %>% 
+  dplyr::select(Country.code,Type,Fatal) %>% 
+  filter(Country.code=='AU') %>% 
+  group_by(Fatal) %>% 
+  summarise(Fatal_num = n())   # 879 ; 27 ; 318
+
+fatal <- as.table(rbind(c(1795,20,217),c(879,27,318)))
+dimnames(fatal) <- list( Country = c("US","AU"),
+                         fatal = c("N","Unknown","Y"))
+
+chisq.test(fatal)
+
+
+```
+
+
+
+## Power analysis
+
+
+```{r}
+
+
+p <- seq(0,1,0.01)
+y <- 2*asin(sqrt(p))
+
+h<-ES.h(0.3,0.2)
+h
+pwr.p.test(h=h,n=60,sig.level=0.05,alternative="two.sided")
+
+```
+
+
+
+
+
+
+
+## Rain in Southern Illinois
+
+Your job is to explore the distribution of the rainfall data. We have done this in a variety of ways this semester. You may find that the fitdistrplus package is helpful, but you are not required to use it.
+
+As you explore the data consider what they mean. Are the four years similar? Where some years wetter? If some years were wetter, was it because there were more storms? Or, was it because storms produced more rain?
+
+In their article that Changnon and Huff concluded that the gamma distribution was a good fit for their data.
+What other distributions might they have considered? Do you agree with Changnon and Huff? Why? Why not?
+Using the gamma distribution as your model, produce estimates of the parameters using both the method of moments and maximum likelihood. Use the bootstrap to estimate the variance of the estimates. Compare the estimates which estimates would you present? Why?
+
+```{r}
+# load the data
+
+ill60 <- read.table("ill-60.txt", quote="\"", comment.char="")
+ill61 <- read.table("ill-61.txt", quote="\"", comment.char="")
+ill62 <- read.table("ill-62.txt", quote="\"", comment.char="")
+ill63 <- read.table("ill-63.txt", quote="\"", comment.char="")
+ill64 <- read.table("ill-64.txt", quote="\"", comment.char="")
+
+ill60 <-as.numeric(as.array(ill60 [,1]))
+ill61 <-as.numeric(as.array(ill61 [,1]))
+ill62 <-as.numeric(as.array(ill62 [,1]))
+ill63 <-as.numeric(as.array(ill63 [,1]))
+ill64 <-as.numeric(as.array(ill64 [,1]))
+
+# the distribution of the rainfall data.
+
+## density plot 
+par(mfrow=c(2,3))
+plot(density(ill60))
+plot(density(ill61))
+plot(density(ill62))
+plot(density(ill63))
+plot(density(ill64))
+```
