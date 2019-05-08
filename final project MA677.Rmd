@@ -2,7 +2,7 @@
 title: "Final Project for MA 677"
 author: "Wenjia Xie"
 date: "May 6, 2019"
-output: html_document
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
@@ -106,28 +106,33 @@ dimnames(fatal) <- list( Country = c("US","AU"),
 
 chisq.test(fatal)
 
+data3 <- shark %>% 
+  filter(Country.code=="US" | Country.code=="AU")
 
+ggplot(data=data3)+
+  geom_bar(mapping=aes(x=Country, fill=Fatal, position = "stack"))+
+  theme_minimal()
 ```
 
-
+From the chi-square test, we can see that the p-value is so small that we can reject the null hypothesis, meaning the distribution of two sample is not the same. Meanwhile,from the bar plot, we can also see that the main difference comes from the porpotion of fatal attacks. Generally, there are less non-fatal attacks and more fatal attacks in Aus, so the sharks there are more vicious.
 
 ## Power analysis
 
 
 ```{r}
 
-
-p <- seq(0,1,0.01)
-y <- 2*asin(sqrt(p))
-
-h<-ES.h(0.3,0.2)
-h
-pwr.p.test(h=h,n=60,sig.level=0.05,alternative="two.sided")
-
+x <- seq(0,1,0.05)
+y <- 2*asin(sqrt(x))
+plot(x,y,type ="l")
 ```
 
+Arcsine transformation  is useful to the power analysis. Orginally although differences between (0.05,0.25) and (0.45,0.65) are both 0.2,but due to the distance from zero, the difference in power is not the same. However, when arcsince transformation is applied, the differences is no longer the same, which can reflect the difference in power. Thus, when p is transformed, equal difference are equally detectable. 
 
 
+
+## Estimators
+
+See pictures in files.
 
 
 
@@ -218,11 +223,90 @@ summary(boot_mom)
 
 
 # calculate mle 
-mle <- fitdist(alldata, "gamma",method = "mle")
+mle <- fitdist(rain_all, "gamma",method = "mle")
 boot_mle <- bootdist(mle)
 summary(boot_mle)
 
+```
 
-# Compare the estimates
-gofstat(list(mom,mle))
+From the summary, we can see that the variances of MLE method of two estimates are  narrower than those of MoM estimates. Thus,I would present MLE method to give the estimates.
+
+## Use R to reproduce the calculations in Table 1 which is explained in 3.2.3. Describe what you have done and what it means in the context the the treatment decision used as an illustration in the Manski article.
+
+To derive the equations in (10a),(10b),(10c), we need to calculate the porsterior mean for $\beta$.
+
+The prior distribution is Beta(c,d), thus the density function is 
+$$
+f(x)=\frac{x^{c-1} (1-x)^{d-1}}{B(c,d)}
+$$
+
+The Binomial likelihood is
+$$
+p^{n}(1-p)^{N-n}
+$$
+
+Based on that, we can get a posterior density function as:
+$$
+p(x)=\frac{x^{c+n-1} (1-x)^{N-n+d-1}}{B(c+n,d+N-n)}
+$$
+From the density function, we can see that posterior is a Beta(c+n,d+N-n) distribution, therefore the posterior mean is
+$$
+\hat{\beta}=\frac{c+n}{c+n+d+N-n}=\frac{c+n}{c+d+N}
+$$
+
+Based on that, we can get the admissible rule:
+
+$$
+\begin{aligned}
+\delta(n)&=0\quad for\, \hat{\beta}<\alpha\\
+\delta(n)&=\lambda\quad for\, \hat{\beta}=\alpha, where\,0\leq\lambda\leq1\\
+\delta(n)&=1\quad for\, \hat{\beta}>\alpha
+\end{aligned}
+$$
+
+```{r}
+library(data.table)
+library(tidyverse)
+# get wide and long format of table 1
+table1 <- fread("table.csv",skip = 2, nrows = 5)
+table1[,"alpha"] <-c(0.1,0.25,0.5,.75,.9)
+table1$V1<-NULL
+colnames(table1)[1:11] <- 0:10
+tbl1 <- gather(table1,"N","n0",-alpha)
+# get wide and long format of table 2
+table2 <- fread("table.csv",skip = 8, nrows = 5)
+table2[,"alpha"] <-c(0.1,0.25,0.5,.75,.9)
+table2$V1<-NULL
+colnames(table2)[1:11] <- 0:10
+tbl2 <- gather(table2,"N","lambda",-alpha)
+tbl<-left_join(tbl1,tbl2,by=c("alpha"="alpha","N"="N"))
+tbl$N <- as.numeric(tbl$N)
+tbl$n0 <- as.numeric(tbl$n0)
+tbl$lambda <- as.numeric(tbl$lambda)
+```
+
+```{r compute table3, eval=F}
+beta <- seq(0,1,0.01)
+delta <- function(n0,lambda,n){
+  if (n<n0){
+    return(0)
+  }
+  else if (n==n0){
+    return(lambda)
+  }
+  else {
+    return(1)
+  }
+}
+E <- function(n0,lambda,N){
+  sum = c
+  for (i in 0:N){
+    f = factorial(N)/(factorial(i)*factorial(N-i))*beta^(i)*(1-beta)^(N-i)
+    delt = delta(n0,lambda,i)
+    sum = sum+ f*delt
+  }
+  return(sum)
+}
+
+
 ```
